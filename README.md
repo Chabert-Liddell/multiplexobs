@@ -1,12 +1,13 @@
 # multiplexobs
 
-etwtew
+A python package for the inference of a real latent network from multiple network observations with block structures. Provides a clustering of the network observations.
 
 ## Installation
 
-```bash
+- TODO
+<!-- ```bash
 $ pip install multiplexobs
-```
+``` -->
 
 ## Usage
 
