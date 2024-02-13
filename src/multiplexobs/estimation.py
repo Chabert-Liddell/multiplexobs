@@ -1,8 +1,8 @@
 
 import tqdm as tqdm
 import torch
+from torch.utils.data import DataLoader
 from multiplexobs.multiplexobs import MultiPlexObs
-from multiplexobs.loader import DataLoader
 import numpy as np
 
 
@@ -115,7 +115,7 @@ def pyramidal_training(data,
         lr_init (double): The learning rate for initialization (default: 1).
         lr_run (double): The learning rate for running (default: 0.05).
         model2 (MultiPlexObs): The second model to initialize from (default: None).
-        **kwargs: Additional arguments and keyword arguments.
+        **kwargs: Additional arguments to be passed to the init_from_models function.
 
     Returns:
         MultiPlexObs: The fitted model with the lowest loss.
