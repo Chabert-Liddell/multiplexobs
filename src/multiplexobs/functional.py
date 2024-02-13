@@ -25,7 +25,7 @@ def log_norm_const(p, eps=1e-6):
 
 
 
-def bernoulli_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, tau_nodes, tau_net):
+def bernoulli_obs_likelihood(A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, tau_nodes, tau_net):
     """
     Calculate the log-likelihood of observed data given the model parameters for a Bernoulli emission distribution (binary data).
 
@@ -58,7 +58,7 @@ def bernoulli_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_
     ll = torch.sum(M_lat * ll)    
     return ll
     
-def continuous_bernoulli_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, tau_nodes, tau_net):
+def continuous_bernoulli_obs_likelihood(A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, tau_nodes, tau_net):
     """
     Calculate the log-likelihood of observed data given the model parameters for a Continuous Bernoulli emission distribution (data in [0,1]).
 
@@ -99,7 +99,7 @@ def continuous_bernoulli_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_
     
     
     
-def beta_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, tau_nodes, tau_net, beta_ss):
+def beta_obs_likelihood(A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, tau_nodes, tau_net, beta_ss):
     """
     Calculate the log-likelihood of observed data given the model parameters for a Continuous Bernoulli emission distribution (data in [0,1]).
 
@@ -119,29 +119,28 @@ def beta_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, 
     """
 
 
-    if self.obs_dist == 'Beta':
-        beta_ss = 2 + pcf.softplus(beta_ss, scale = 1)
-        X1W = (M_obs * torch.log(A_obs + 1e-9)).permute(1,2,0).matmul(tau_net)
-        X0W = (M_obs * torch.log(1 - A_obs + 1e-9)).permute(1,2,0).matmul(tau_net)
-        XW = M_obs.permute(1,2,0).matmul(tau_net)            
-        for k in range(self.nb_clusters):
-            ZAP1Z = tau_nodes[k][:,:] @ (alpha_pos[k][:,:] * beta_ss) @ tau_nodes[k][:,:].t()
-            ZAP0Z = tau_nodes[k][:,:] @ ((1-alpha_pos[k][:,:]) * beta_ss) @ tau_nodes[k][:,:].t()
-            ZAN1Z = tau_nodes[k][:,:] @ (alpha_neg[k][:,:] * beta_ss) @ tau_nodes[k][:,:].t()
-            ZAN0Z = tau_nodes[k][:,:] @ ((1 - alpha_neg[k][:,:]) * beta_ss) @ tau_nodes[k][:,:].t()
-            ll += A_lat * X1W[:,:,k] * ZAP1Z
-            ll += A_lat * X0W[:,:,k] * ZAP0Z
-            ll += (1-A_lat) * X1W[:,:,k] * ZAN1Z
-            ll += (1-A_lat) * X0W[:,:,k] * ZAN0Z
-            ZAPZ = tau_nodes[k][:,:] @ (torch.lgamma(beta_ss) - \
-                torch.lgamma(beta_ss*alpha_pos[k][:,:]) - torch.lgamma(beta_ss * (1- alpha_pos[k][:,:]))) \
-                @ tau_nodes[k][:,:].t()
-            ZANZ = tau_nodes[k][:,:] @ (torch.lgamma(beta_ss) -  \
-                torch.lgamma(beta_ss*alpha_neg[k][:,:]) - torch.lgamma(beta_ss * (1- alpha_neg[k][:,:]))) \
-                @ tau_nodes[k][:,:].t()
-            ll += A_lat * XW[:,:,k] * ZAPZ
-            ll += (1 - A_lat) * XW[:,:,k] * ZANZ    
-                    
+    beta_ss = 2 + pcf.softplus(beta_ss, scale = 1)
+    X1W = (M_obs * torch.log(A_obs + 1e-9)).permute(1,2,0).matmul(tau_net)
+    X0W = (M_obs * torch.log(1 - A_obs + 1e-9)).permute(1,2,0).matmul(tau_net)
+    XW = M_obs.permute(1,2,0).matmul(tau_net)            
+    for k in range(self.nb_clusters):
+        ZAP1Z = tau_nodes[k][:,:] @ (alpha_pos[k][:,:] * beta_ss) @ tau_nodes[k][:,:].t()
+        ZAP0Z = tau_nodes[k][:,:] @ ((1-alpha_pos[k][:,:]) * beta_ss) @ tau_nodes[k][:,:].t()
+        ZAN1Z = tau_nodes[k][:,:] @ (alpha_neg[k][:,:] * beta_ss) @ tau_nodes[k][:,:].t()
+        ZAN0Z = tau_nodes[k][:,:] @ ((1 - alpha_neg[k][:,:]) * beta_ss) @ tau_nodes[k][:,:].t()
+        ll += A_lat * X1W[:,:,k] * ZAP1Z
+        ll += A_lat * X0W[:,:,k] * ZAP0Z
+        ll += (1-A_lat) * X1W[:,:,k] * ZAN1Z
+        ll += (1-A_lat) * X0W[:,:,k] * ZAN0Z
+        ZAPZ = tau_nodes[k][:,:] @ (torch.lgamma(beta_ss) - \
+            torch.lgamma(beta_ss*alpha_pos[k][:,:]) - torch.lgamma(beta_ss * (1- alpha_pos[k][:,:]))) \
+            @ tau_nodes[k][:,:].t()
+        ZANZ = tau_nodes[k][:,:] @ (torch.lgamma(beta_ss) -  \
+            torch.lgamma(beta_ss*alpha_neg[k][:,:]) - torch.lgamma(beta_ss * (1- alpha_neg[k][:,:]))) \
+            @ tau_nodes[k][:,:].t()
+        ll += A_lat * XW[:,:,k] * ZAPZ
+        ll += (1 - A_lat) * XW[:,:,k] * ZANZ    
+                
     ll = torch.sum(M_lat * ll)        
 
     return ll
