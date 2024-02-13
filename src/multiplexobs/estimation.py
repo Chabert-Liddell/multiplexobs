@@ -118,7 +118,7 @@ def pyramidal_training(data,
         **kwargs: Additional arguments and keyword arguments.
 
     Returns:
-        bestMPO (MultiPlexObs): The fitted model with the lowest loss.
+        MultiPlexObs: The fitted model with the lowest loss.
     """
     
     model_list = []
@@ -171,5 +171,90 @@ def pyramidal_training(data,
     bestMPO = best_models[best_model_id]       
        
     return bestMPO
+
+
+def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, verbose=True, save=False, save_path = "save_folder" **kwargs):
+    """
+    Train multiple models using the MultiPlexObs class.
+
+    Args:
+        data (torch.Tensor): The input data for training the models.
+        min (int): The minimum value for the range of the parameter to be varied.
+        max (int): The maximum value for the range of the parameter to be varied.
+        step (int, optional): The step size for the range of the parameter. Defaults to 1.
+        dim (str, optional): The dimension to vary the parameter. Can be one of 'clusters', 'blocks_obs', or 'blocks_lat'. Defaults to 'clusters'.
+        model2 (MultiPlexObs, optional): An object of class MultiPlexObs. Defaults to None.
+        depth (int, optional): The depth of the stopping criterion. Defaults to 2.
+        verbose (bool, optional): Whether to print the progress and results. Defaults to True.
+        save (bool, optional): Whether to save the trained models. Defaults to False. Each model will be saved in a separate file.
+        model_path (str, optional): The save path of the models. Defaults to "save_folder".
+        **kwargs: Additional keyword arguments to be passed to the pyramidal_training function.
+
+    Returns:
+        list: A list of trained models, including the initial model.
+
+    Raises:
+        AssertionError: If model2 is not an object of class MultiPlexObs.
+    """
+    
+    assert isinstance(model2, MultiPlexObs), "model2 must be an object of class MultiPlexObs"
+    best_list = [model2]
+    counter = 0
+    for k in tqdm(range(min, max, step), desc='Train models'):
+        if dim == 'clusters':
+            K = k
+            Q = model2.nb_blocks_obs[0]
+            QA = model2.nb_blocks_lat
+        elif dim == 'blocks_obs':
+            K = model2.nb_clusters
+            Q = k
+            QA = model2.nb_blocks_lat        
+        elif dim == 'blocks_lat':
+            K = model2.nb_clusters
+            QA = k
+            Q = model2.nb_blocks_obs[0]
+        bestMPO = pyramidal_training(data=data,
+                                     nb_networks=model2.nb_networks,
+                                     nb_nodes=model2.nb_nodes,
+                                     nb_clusters=K,
+                                     nb_blocks_obs=Q,
+                                     nb_blocks_net=QA,
+                                     obs_dist=model2.obs_dist,
+                                     directed=model2.directed,
+                                     is_dynamic=model2.is_dynamic,
+                                     is_hierarchical=model2.is_hierarchical,
+                                     net_covariates=model2.net_covariates,
+                                     model2=model2,
+                                     **kwargs
+                                     )   
+        optim = torch.optim.Adam(bestMPO.params, lr=.05) 
+        bestMPO.train(DataLoader(data, batch_size=model2.nb_networks, shuffle=True), 
+                      optim, 
+                      loss='elbo', nb_epochs=5000, verbose=False)
+        best_list.append(bestMPO)
+        tmpMPO = bestMPO
+
+        if verbose:
+            print('[%d/%d/1] icl: %.2f, loss: %.2f, entropy: %.2f, penalty: %.2f' %
+                  (k, 1, 
+                   bestMPO.complete_log_likelihood_list[-1] - bestMPO.penalty.numpy(),
+                   bestMPO.loss_list[-1],
+                   bestMPO.entropy_list[-1],
+                   bestMPO.penalty.numpy()
+                   ))
+        if save:
+            model_path = '{}_{}_{}_{}_{}_{}_{}.pt'.format(save_folder,
+                                                           K, Q, QA, 
+                                                           tmpMPO.is_hierarchical, 
+                                                           tmpMPO.is_dynamic, tmpMPO.is_hierarchical)
+            torch.save(tmpMPO, model_path)
+        if best_list[-1].complete_log_likelihood_list[-1] - best_list[-1].penalty.numpy() > \
+           best_list[-2].complete_log_likelihood_list[-1] - best_list[-2].penalty.numpy():
+            counter = 0
+        else:
+            counter += 1
+            if counter >= depth:
+                break
+    return best_list
 
 
