@@ -96,7 +96,7 @@ class MultiPlexObs(nn.Module):
         Initializes the multiplex observation model with the given data.
 
         Args:
-            data: The input data containing the adjacency matrix (A) and the multiplex matrix (M).
+            data: The input data containing the adjacency tensors (A) and the mask tensor (M).
 
         Returns:
         None
@@ -152,9 +152,9 @@ class MultiPlexObs(nn.Module):
             Simplex are encoded into probability vectors.
 
             Returns:
-                pi_obs ([torch.Tensor]): List of mixture parameters for each cluster.
-                alpha_obs_pos ([torch.Tensor]): List of emission parameters given a latent interaction (sigmoid transformed parameters) for each cluster.
-                alpha_obs_neg ([torch.Tensor]): List of emission parameters given no latent interaction (sigmoid transformed parameters) for each cluster.
+                pi_obs (List[torch.Tensor]): List of mixture parameters for each cluster.
+                alpha_obs_pos (List[torch.Tensor]): List of emission parameters given a latent interaction (sigmoid transformed parameters) for each cluster.
+                alpha_obs_neg (List[torch.Tensor]): List of emission parameters given no latent interaction (sigmoid transformed parameters) for each cluster.
             """
             
             alpha_obs_pos = [torch.sigmoid(self.alpha_obs_pos[k]) for k in range(self.nb_clusters)]
@@ -195,7 +195,7 @@ class MultiPlexObs(nn.Module):
             Converts the real-valued parameters into the natural parameterization of the variational parameters.
             
             Returns:
-                tau_obs (list): List of the variational parameters for the block memberships of shape (nb_nodes, nb_blocks_obs) for each cluster. Each
+                tau_obs (List[torch.Tensor]): List of the variational parameters for the block memberships of shape (nb_nodes, nb_blocks_obs) for each cluster. Each
                 row is a probability vector.
                 tau_net (torch.Tensor): Variational parameters for the network clustering of shape (nb_networks, nb_clusters). Each
                 row is a probability vector.

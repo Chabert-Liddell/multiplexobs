@@ -6,19 +6,22 @@ def log_norm_const(p, eps=1e-6):
     """
     Compute the logarithm of the normalization constant of a ContinuousBernoulli for a given input tensor.
 
-    Parameters:
-    - x (torch.Tensor): Input tensor.
-    - eps (float, optional): Small value to avoid division by zero. Default is 1e-6.
+    Args:
+        p (torch.Tensor): Input tensor representing the probability values.
+        eps (float, optional): Small value to avoid division by zero. Default is 1e-6.
 
     Returns:
-    - torch.Tensor: The logarithm of the normalization constant.
+        torch.Tensor: The logarithm of the normalization constant.
+
+    Raises:
+        AssertionError: If any value in p is not between 0 and 1.
     """
     assert torch.all((0 <= p) & (p <= 1)), "p must be a probability value between 0 and 1"
     p = torch.clamp(p, eps, 1 - eps)
     p = torch.where((p < 0.49) | (p > 0.51), p, 0.49 *
-            torch.ones_like(p))
+        torch.ones_like(p))
     return torch.log((2 * torch.arctanh(1 - 2 * p)) /
-                    (1 - 2 * p) + eps)
+            (1 - 2 * p) + eps)
 
 
 
@@ -26,20 +29,19 @@ def bernoulli_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_
     """
     Calculate the log-likelihood of observed data given the model parameters for a Bernoulli emission distribution (binary data).
 
-    Parameters:
-    - A_obs (torch.Tensor): Observed adjacency matrix.
-    - M_obs (torch.Tensor): Mask matrix indicating which entries in A_obs are observed.
-    - A_lat (torch.Tensor): Latent adjacency matrix.
-    - M_lat (torch.Tensor): Mask matrix indicating which entries in A_lat are defined.
-    - alpha_pos (List[torch.Tensor]): List of parameters of the emission distribution (A_lat == 1) for each cluster.
-    - alpha_neg (List[torch.Tensor]): List of parameters of the emission distribution (A_lat == 0) for each cluster.
-    - tau_nodes (List[torch.Tensor]): List of node block memberships for each cluster.
-    - tau_net (torch.Tensor): Network clustering matrix.
+    Args:
+        A_obs (torch.Tensor): Observed adjacency matrix.
+        M_obs (torch.Tensor): Mask matrix indicating which entries in A_obs are observed.
+        A_lat (torch.Tensor): Latent adjacency matrix.
+        M_lat (torch.Tensor): Mask matrix indicating which entries in A_lat are defined.
+        alpha_pos (List[torch.Tensor]): List of parameters of the emission distribution (A_lat == 1) for each cluster.
+        alpha_neg (List[torch.Tensor]): List of parameters of the emission distribution (A_lat == 0) for each cluster.
+        tau_nodes (List[torch.Tensor]): List of node block memberships for each cluster.
+        tau_net (torch.Tensor): Network clustering matrix.
 
     Returns:
-    - log-likelihood (torch.Tensor): Log likelihood of the observed data given the model parameters.
+        torch.Tensor: Log likelihood of the observed data given the model parameters.
     """
-
     ll = 0
     nb_clusters = len(tau_nodes)
     X1W = (M_obs * A_obs).permute(1,2,0).matmul(tau_net)
@@ -60,20 +62,19 @@ def continuous_bernoulli_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_
     """
     Calculate the log-likelihood of observed data given the model parameters for a Continuous Bernoulli emission distribution (data in [0,1]).
 
-    Parameters:
-    - A_obs (torch.Tensor): Observed adjacency matrix.
-    - M_obs (torch.Tensor): Mask matrix indicating which entries in A_obs are observed.
-    - A_lat (torch.Tensor): Latent adjacency matrix.
-    - M_lat (torch.Tensor): Mask matrix indicating which entries in A_lat are defined.
-    - alpha_pos (List[torch.Tensor]): List of parameters of the emission distribution (A_lat == 1) for each cluster.
-    - alpha_neg (List[torch.Tensor]): List of parameters of the emission distribution (A_lat == 0) for each cluster.
-    - tau_nodes (List[torch.Tensor]): List of node block memberships for each cluster.
-    - tau_net (torch.Tensor): Network clustering matrix.
+    Args:
+        A_obs (torch.Tensor): Observed adjacency matrix.
+        M_obs (torch.Tensor): Mask matrix indicating which entries in A_obs are observed.
+        A_lat (torch.Tensor): Latent adjacency matrix.
+        M_lat (torch.Tensor): Mask matrix indicating which entries in A_lat are defined.
+        alpha_pos (List[torch.Tensor]): List of parameters of the emission distribution (A_lat == 1) for each cluster.
+        alpha_neg (List[torch.Tensor]): List of parameters of the emission distribution (A_lat == 0) for each cluster.
+        tau_nodes (List[torch.Tensor]): List of node block memberships for each cluster.
+        tau_net (torch.Tensor): Network clustering matrix.
 
     Returns:
-    - log-likelihood (torch.Tensor): Log likelihood of the observed data given the model parameters.
+        torch.Tensor: Log likelihood of the observed data given the model parameters.
     """
-
     ll = 0
     nb_clusters = len(tau_nodes)
     X1W = (M_obs * A_obs).permute(1,2,0).matmul(tau_net)
@@ -102,19 +103,19 @@ def beta_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, 
     """
     Calculate the log-likelihood of observed data given the model parameters for a Continuous Bernoulli emission distribution (data in [0,1]).
 
-    Parameters:
-    - A_obs (torch.Tensor): Observed adjacency matrix.
-    - M_obs (torch.Tensor): Mask matrix indicating which entries in A_obs are observed.
-    - A_lat (torch.Tensor): Latent adjacency matrix.
-    - M_lat (torch.Tensor): Mask matrix indicating which entries in A_lat are defined.
-    - alpha_pos (List[torch.Tensor]): List of position parameters (A_lat == 1) for each cluster.
-    - alpha_neg (List[torch.Tensor]): List of position parameters (A_lat == 0) for each cluster.
-    - tau_nodes (List[torch.Tensor]): List of node block memberships for each cluster.
-    - tau_net (torch.Tensor): Network clustering matrix.
-    - beta_ss (torch.Tensor): Sample size parameter of the beta distribution.
+    Args:
+        A_obs (torch.Tensor): Observed adjacency matrix.
+        M_obs (torch.Tensor): Mask matrix indicating which entries in A_obs are observed.
+        A_lat (torch.Tensor): Latent adjacency matrix.
+        M_lat (torch.Tensor): Mask matrix indicating which entries in A_lat are defined.
+        alpha_pos (List[torch.Tensor]): List of position parameters (A_lat == 1) for each cluster.
+        alpha_neg (List[torch.Tensor]): List of position parameters (A_lat == 0) for each cluster.
+        tau_nodes (List[torch.Tensor]): List of node block memberships for each cluster.
+        tau_net (torch.Tensor): Network clustering matrix.
+        beta_ss (torch.Tensor): Sample size parameter of the beta distribution.
 
     Returns:
-    - log-likelihood (torch.Tensor): Log likelihood of the observed data given the model parameters.
+        log-likelihood (torch.Tensor): Log likelihood of the observed data given the model parameters.
     """
 
 
@@ -147,16 +148,16 @@ def beta_obs_likelihood(self, A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, 
 
 def bernoulli_sbm_likelihood(A, M, alpha, tau):
     """
-    Calculate the likelihood of a Bernoulli SBM network.
+    Calculate the log-likelihood of a Bernoulli SBM network.
 
-    Parameters:
-    A (torch.Tensor): Adjacency matrix of the network.
-    M (torch.Tensor): Mask matrix indicating which entries of A are observed.
-    alpha (torch.Tensor): Parameters of the Bernoulli distribution.
-    tau (torch.Tensor): Community assignment matrix.
+    Args:
+        A (torch.Tensor): Adjacency matrix of the network.
+        M (torch.Tensor): Mask matrix indicating which entries of A are observed.
+        alpha (torch.Tensor): Parameters of the Bernoulli distribution.
+        tau (torch.Tensor): Community assignment matrix.
 
     Returns:
-    torch.Tensor: The likelihood of the Bernoulli SBM network.
+        torch.Tensor: The likelihood of the Bernoulli SBM network.
     """
 
     ll = torch.sum(M * A * (tau @ alpha.logit() @ tau.t()))
