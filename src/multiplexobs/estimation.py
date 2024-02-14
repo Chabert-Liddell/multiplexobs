@@ -1,5 +1,5 @@
 
-import tqdm as tqdm
+from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 from multiplexobs.multiplexobs import MultiPlexObs
@@ -33,8 +33,8 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
         K2 = model2.nb_clusters
         Q1 = model1.nb_blocks_obs[0]
         Q2 = model2.nb_blocks_obs[0]
-        QA1 = model1.nb_blocks_net
-        QA2 = model2.nb_blocks_net
+        QA1 = model1.nb_blocks_lat
+        QA2 = model2.nb_blocks_lat
 
         if QA1 > QA2:
             tau_lat = torch.cat( (tau_lat, torch.zeros((n, QA1 - QA2))), 1)
@@ -53,7 +53,7 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
             tau_obs = [torch.cat((tau_obs[k], torch.zeros((n, Q1 - Q2))), 1) \
                 for k in range(K2)]
         if Q1 < Q2:
-            tau_obs = [tau_obs[k][:,: (model1.nb_blocks_net - 1)] for k in range(K2)]
+            tau_obs = [tau_obs[k][:,: (model1.nb_blocks_lat - 1)] for k in range(K2)]
         
         
         if K1 > K2:
@@ -70,7 +70,7 @@ def pyramidal_training(data,
                        nb_nodes,
                        nb_clusters = 1,
                        nb_blocks_obs = 1,
-                       nb_blocks_net = 1,
+                       nb_blocks_lat = 1,
                        obs_dist = 'Bernoulli',
                        directed = False,
                        is_dynamic = False,
@@ -98,7 +98,7 @@ def pyramidal_training(data,
         nb_nodes (int): The number of nodes.
         nb_clusters (int): The number of clusters (default: 1).
         nb_blocks_obs ([int]): The number of blocks for observations (default: 1).
-        nb_blocks_net (int): The number of blocks for networks (default: 1).
+        nb_blocks_lat (int): The number of blocks for networks (default: 1).
         obs_dist (str): The distribution of observations (default: 'Bernoulli').
         directed (bool): Whether the network is directed (default: False).
         is_dynamic (bool): Whether the network is dynamic (default: False).
@@ -125,12 +125,14 @@ def pyramidal_training(data,
     icl_list = []
     tmp_model_list = []
     nb_blocks_obs = np.repeat(nb_blocks_obs, nb_clusters)
+    if isinstance(nb_networks, torch.Tensor):
+        nb_networks = int(nb_networks.numpy())
     for m in tqdm(range(nb_init), desc ='Initializing'):
         myMPO = MultiPlexObs(nb_networks=nb_networks, 
                             nb_nodes = nb_nodes, 
                             nb_clusters = nb_clusters,
                             nb_blocks_obs= nb_blocks_obs, 
-                            nb_blocks_net = nb_blocks_net, 
+                            nb_blocks_lat = nb_blocks_lat, 
                             obs_dist = obs_dist, 
                             directed = directed, 
                             is_hierarchical = is_hierarchical, 
@@ -140,12 +142,12 @@ def pyramidal_training(data,
         myMPO.initialize(data)
         myMPO.to(device)
         if model2 is not None:
-            init_from_models(myMPO, model2)
+            init_from_models(myMPO, model2, **kwargs)
         optim = torch.optim.Adam(myMPO.params, lr = lr_init)
-        myMPO.train(DataLoader(data, batch_size= nb_networks//batch_ratio_init, 
+        myMPO.train(DataLoader(data, batch_size= int(nb_networks//batch_ratio_init), 
                             shuffle=True), 
                     optim, 
-                    nb_epochs=nb_epochs_init, loss = 'elbo', verbose=False)
+                    nb_epochs=nb_epochs_init, loss = 'elbo', verbose=True)
         tmp_model_list.append(myMPO)
 #            bar.next()
     ord = np.array(np.argsort(np.array([tmp_model_list[m].loss_list[-1] for m in range(nb_init)])))[:nb_run]
@@ -155,16 +157,16 @@ def pyramidal_training(data,
     for m in tqdm(range(nb_run), desc ='Running'):
         myMPO = best_models[m]
         optim =torch.optim.Adam(myMPO.params, lr = lr_run) 
-        myMPO.train(DataLoader(data, batch_size = nb_networks//batch_ratio_run, 
+        myMPO.train(DataLoader(data, batch_size = int(nb_networks//batch_ratio_run), 
                             shuffle=True), 
             optim, 
             loss = 'elbo', 
             nb_epochs = nb_epochs_run, verbose = False, early_stopping=early_stopping)
-        myMPO.train(DataLoader(data, batch_size = nb_networks, 
+        myMPO.train(DataLoader(data, batch_size = int(nb_networks), 
                             shuffle=True), 
             optim, 
             loss = 'elbo', 
-            nb_epochs = nb_epochs_run, verbose = False, early_stopping=early_stopping)
+            nb_epochs = nb_epochs_run, verbose = True, early_stopping=early_stopping)
         model_list.append(myMPO)
         icl_list.append(myMPO.icl())
     best_model_id = np.nanargmin(np.array([model_list[m].loss_list[-1] for m in range(nb_run)]))
@@ -173,7 +175,7 @@ def pyramidal_training(data,
     return bestMPO
 
 
-def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, verbose=True, save=False, save_path = "save_folder" **kwargs):
+def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, verbose=True, save=False, save_path = "save_folder", **kwargs):
     """
     Train multiple models using the MultiPlexObs class.
 
@@ -218,7 +220,7 @@ def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, v
                                      nb_nodes=model2.nb_nodes,
                                      nb_clusters=K,
                                      nb_blocks_obs=Q,
-                                     nb_blocks_net=QA,
+                                     nb_blocks_lat=QA,
                                      obs_dist=model2.obs_dist,
                                      directed=model2.directed,
                                      is_dynamic=model2.is_dynamic,
@@ -228,7 +230,7 @@ def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, v
                                      **kwargs
                                      )   
         optim = torch.optim.Adam(bestMPO.params, lr=.05) 
-        bestMPO.train(DataLoader(data, batch_size=model2.nb_networks, shuffle=True), 
+        bestMPO.train(DataLoader(data, batch_size=int(model2.nb_networks.item()), shuffle=True), 
                       optim, 
                       loss='elbo', nb_epochs=5000, verbose=False)
         best_list.append(bestMPO)

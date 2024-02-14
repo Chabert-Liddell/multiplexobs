@@ -89,7 +89,7 @@ def continuous_bernoulli_obs_likelihood(A_obs, M_obs, A_lat, M_lat, alpha_pos, a
         ll += (1-A_lat) * X1W[:,:,k] * ZAN1Z
         ll += (1-A_lat) * X0W[:,:,k] * ZAN0Z
     XW = M_obs.permute(1,2,0).matmul(tau_net)
-    for k in range(self.nb_clusters):
+    for k in range(nb_clusters):
         ZAPZ = tau_nodes[k][:,:] @ log_norm_const(alpha_pos[k][:,:]) @ tau_nodes[k][:,:].t()
         ZANZ = tau_nodes[k][:,:] @ log_norm_const(alpha_neg[k][:,:]) @ tau_nodes[k][:,:].t()
         ll += A_lat * XW[:,:,k] * ZAPZ
