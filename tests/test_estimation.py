@@ -46,7 +46,7 @@ myMPO2 = MultiPlexObs(nb_networks=L,
                                 nb_blocks_obs= [1], 
                                 nb_blocks_lat = 1, 
                                 obs_dist = 'ContinuousBernoulli', 
-                                directed = False, 
+                                directed = True, 
                                 is_hierarchical = False, 
                                 is_dynamic = False,
                                 net_covariates=np.array([0,0,1,1,1]),
@@ -55,6 +55,24 @@ myMPO2.initialize(data2)
 myMPO2.to(device)            
 optim = torch.optim.Adam(myMPO2.params, lr = 1)
 myMPO2.train(DataLoader(data2, batch_size= L, shuffle=True), 
+            optim, 
+            nb_epochs=10, loss = 'elbo', verbose=False)    
+
+myMPO3 = MultiPlexObs(nb_networks=L, 
+                                nb_nodes = N, 
+                                nb_clusters = 3, 
+                                nb_blocks_obs= [1,1,1], 
+                                nb_blocks_lat = 2, 
+                                obs_dist = 'Beta', 
+                                directed = True, 
+                                is_hierarchical = True, 
+                                is_dynamic = True,
+                                net_covariates=None,
+                                device='cpu')
+myMPO3.initialize(data2)
+myMPO3.to(device)            
+optim = torch.optim.Adam(myMPO3.params, lr = 1)
+myMPO3.train(DataLoader(data2, batch_size= L, shuffle=True), 
             optim, 
             nb_epochs=10, loss = 'elbo', verbose=False)    
 
@@ -94,4 +112,12 @@ def test_train_models():
                         nb_epochs_run = 1, batch_ratio_run = 2,  batch_ratio_init = 2, lr_init = .1, depth = 5)
     assert np.allclose([(2,1),(2,2),(2,3)], [mod.natural_parameters_network().shape for mod in models]) # Including the initial model
     
+    # Test case 4: Training models with beta distribution, dynamic and hierarchical
+    models = train_models(data, 2, 4, step=1, dim='blocks_obs', model2=myMPO3,
+                        nb_init = 1, 
+                        nb_run = 1, 
+                        nb_epochs_init = 1,
+                        nb_epochs_run = 1, batch_ratio_run = 2,  batch_ratio_init = 2, lr_init = .1, depth = 5)
+    assert np.allclose([(3,3),(3,3),(3,3)], [mod.natural_parameters_network().shape for mod in models]) # Including the initial model
+    assert np.allclose([(2,1),(2,2),(2,3)], [mod.natural_parameters_obs()[0][0].shape for mod in models]) # Including the initial model
     

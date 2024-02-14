@@ -46,6 +46,8 @@ class MultiPlexObs(nn.Module):
         assert np.all(
             [q == nb_blocks_obs[0] for q in nb_blocks_obs]
         ), "Each observation process must have the same number of blocks!"
+        assert (not (net_covariates is not None) &  is_dynamic
+        ), "Model can not have both net_covariates and is_dynamic. Please choose one."
         
         if isinstance(nb_nodes, torch.Tensor):
             self.nb_nodes = nb_nodes 
@@ -144,14 +146,7 @@ class MultiPlexObs(nn.Module):
                 .to(self.device)
                 .requires_grad_(True)
             )
-        else:
-            self.pi_net = (
-                torch.randn(nb_clusters - 1, dtype=torch.float32)
-                .to(self.device)
-                .requires_grad_(True)
-            )
-
-        if net_covariates is not None:
+        elif net_covariates is not None:
             self.pi_net = (
                 torch.randn(self.nb_covariates, nb_clusters - 1, dtype=torch.float32)
                 .to(self.device)

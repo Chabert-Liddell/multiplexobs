@@ -237,8 +237,8 @@ def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, v
         tmpMPO = bestMPO
 
         if verbose:
-            print('[%d/%d/1] icl: %.2f, loss: %.2f, entropy: %.2f, penalty: %.2f' %
-                  (k, 1, 
+            print('[%d/%d/%d] icl: %.2f, loss: %.2f, entropy: %.2f, penalty: %.2f' %
+                  (K, Q, QA,
                    bestMPO.complete_log_likelihood_list[-1] - bestMPO.penalty.numpy(),
                    bestMPO.loss_list[-1],
                    bestMPO.entropy_list[-1],

@@ -117,13 +117,13 @@ def beta_obs_likelihood(A_obs, M_obs, A_lat, M_lat, alpha_pos, alpha_neg, tau_no
     Returns:
         log-likelihood (torch.Tensor): Log likelihood of the observed data given the model parameters.
     """
-
-
+    ll = 0
+    nb_clusters = len(tau_nodes)
     beta_ss = 2 + pcf.softplus(beta_ss, scale = 1)
     X1W = (M_obs * torch.log(A_obs + 1e-9)).permute(1,2,0).matmul(tau_net)
     X0W = (M_obs * torch.log(1 - A_obs + 1e-9)).permute(1,2,0).matmul(tau_net)
     XW = M_obs.permute(1,2,0).matmul(tau_net)            
-    for k in range(self.nb_clusters):
+    for k in range(nb_clusters):
         ZAP1Z = tau_nodes[k][:,:] @ (alpha_pos[k][:,:] * beta_ss) @ tau_nodes[k][:,:].t()
         ZAP0Z = tau_nodes[k][:,:] @ ((1-alpha_pos[k][:,:]) * beta_ss) @ tau_nodes[k][:,:].t()
         ZAN1Z = tau_nodes[k][:,:] @ (alpha_neg[k][:,:] * beta_ss) @ tau_nodes[k][:,:].t()
