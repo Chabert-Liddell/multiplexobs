@@ -1,3 +1,6 @@
+![build](https://github.com/Chabert-Liddell/multiplexobs/actions/workflows/ci-cd.yml/badge.svg)
+[![codecov](https://codecov.io/gh/Chabert-Liddell/multiplexobs/graph/badge.svg?token=YYIPSB24MU)](https://codecov.io/gh/Chabert-Liddell/multiplexobs)
+
 # multiplexobs
 
 A python package for the inference of a real latent network from multiple network observations with block structures. Provides a clustering of the network observations.
