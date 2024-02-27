@@ -21,12 +21,22 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
         MultiPlexObs: The initialized model1.
     """
     
-    model1.A_lat.add_(model2.A_lat.detach()).clamp_(1 / (1 + np.exp(clamp_max - clamp_min)),
-                                                    1 / (1 + np.exp(clamp_min - clamp_max)))   
+    model1.A_lat.mul_(0).add_(model2.A_lat.detach()).clamp_(1 / (1 + np.exp(clamp_max - clamp_min)),
+                                                    1 / (1 + np.exp(clamp_min - clamp_max)))      
     with torch.no_grad():
         tau_lat = model2.tau_lat.detach()
+        alpha_lat = model2.alpha_lat.detach()
+        pi_lat = model2.pi_lat.detach()
         tau_net = model2.tau_net.detach()
+        pi_net = model2.pi_net.detach()
         tau_obs = [model2.tau_obs[k].detach() for k in range(model2.nb_clusters)]
+        alpha_obs_pos = [model2.alpha_obs_pos[k] for k in range(model2.nb_clusters)]
+        alpha_obs_neg = [model2.alpha_obs_neg[k] for k in range(model2.nb_clusters)]
+        pi_obs = [model2.pi_obs[k] for k in range(model2.nb_clusters)]
+        if model2.obs_dist == 'Beta':
+            beta_ss = model2.beta_ss.detach()  
+            if model1.obs_dist == 'Beta':
+                model1.beta_ss.add_(beta_ss).clamp_(clamp_min,clamp_max)
         L = model1.nb_networks
         n = model1.nb_nodes
         K1 = model1.nb_clusters
@@ -37,29 +47,60 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
         QA2 = model2.nb_blocks_lat
 
         if QA1 > QA2:
-            tau_lat = torch.cat( (tau_lat, torch.zeros((n, QA1 - QA2))), 1)
+            tau_lat1 = torch.zeros_like(model1.tau_lat.detach())
+            tau_lat1[:, :(QA2-1)] += tau_lat
+            pi_lat1 = torch.zeros_like(model1.pi_lat.detach())
+            pi_lat1[:, :(QA2-1)] += pi_lat      
+            alpha_lat1 = torch.zeros_like(model1.alpha_lat.detach()) 
+            alpha_lat1[:QA2,:QA2] += alpha_lat  
+            tau_lat = tau_lat1
+            pi_lat = pi_lat1
+            alpha_lat = alpha_lat1   
+#            pi_lat = torch.cat( (pi_lat, torch.zeros((1, QA1 - QA2))), 1)
+#            alpha_lat = torch.zeros((QA1, QA1)) torch.cat( (alpha_lat, torch.zeros((1, QA1 - QA2))), 1)
         if QA1 < QA2:
             tau_lat = tau_lat[:,: (QA1 - 1)]
+            pi_lat = pi_lat[:,:(QA1,-1)]
+            alpha_lat = alpha_lat[:QA1,:QA1]
+        model1.tau_lat.add_(tau_lat).clamp_(clamp_min,clamp_max)
+        model1.tau_lat.add_(tau_lat).clamp_(clamp_min,clamp_max)
         model1.tau_lat.add_(tau_lat).clamp_(clamp_min,clamp_max)
 
 
         if K1 > K2:
             tau_net = torch.cat((tau_net, torch.zeros((L, K1 - K2))), 1)
+            pi_net1 = torch.zeros_like(model1.pi_net.detach())
+            pi_net1[:, :QA2] += pi_net 
+            pi_net = pi_net1     
         if K1 < K2:
             tau_net = tau_net[:,: (K1 - 1)]
+            pi_net = pi_net[:,: (K1 - 1)]            
         model1.tau_net.add_(tau_net).clamp_(clamp_min,clamp_max)        
+        model1.pi_net.add_(pi_net).clamp_(clamp_min,clamp_max)        
 
         if Q1 > Q2:
             tau_obs = [torch.cat((tau_obs[k], torch.zeros((n, Q1 - Q2))), 1) \
                 for k in range(K2)]
+            pi_obs1 = [torch.zeros_like(model1.pi_obs[k].detach()) for k in range(K1)]
+            pi_obs1 = [pi_obs1[k][:,:(Q2-1)] + pi_obs[k] for k in range(min(K1,K2))]
+            pi_obs = pi_obs1
+            alpha_obs_pos1 = [torch.zeros_like(model1.alpha_obs_pos[k].detach()) for k in range(K1)]
+            alpha_obs_neg1 = [torch.zeros_like(model1.alpha_obs_neg[k].detach()) for k in range(K1)]
+            alpha_obs_pos1 = [alpha_obs_pos1[k][:Q2,:Q2] + alpha_obs_pos[k] for k in range(min(K1,K2))]
+            alpha_obs_neg1 = [alpha_obs_neg1[k][:Q2,:Q2] + alpha_obs_neg[k] for k in range(min(K1,K2))]
+            alpha_obs_pos = alpha_obs_pos1
+            alpha_obs_neg = alpha_obs_neg1            
         if Q1 < Q2:
-            tau_obs = [tau_obs[k][:,: (model1.nb_blocks_lat - 1)] for k in range(K2)]
-        
-        
-        if K1 > K2:
-            [model1.tau_obs[k].add_(tau_obs[k]).clamp_(clamp_min,clamp_max) for k in range(K2)]    
-        if K1 <= K2:
-            [model1.tau_obs[k].add_(tau_obs[k]).clamp_(clamp_min,clamp_max) for k in range(K1)]                
+            tau_obs = [tau_obs[k][:,: (Q1 - 1)] for k in range(K2)]
+            pi_obs = [pi_obs[k][:,: (Q1 - 1)] for k in range(K2)]
+            alpha_obs_pos = [alpha_obs_pos[k][:Q1,:Q1] for k in range(K2)]
+            alpha_obs_neg = [alpha_obs_neg[k][:Q1,:Q1] for k in range(K2)]        
+        [model1.tau_obs[k].add_(tau_obs[k]).clamp_(clamp_min,clamp_max) for k in range(min(K1,K2))]        
+        [model1.pi_obs[k].add_(pi_obs[k]).clamp_(clamp_min,clamp_max) for k in range(min(K1,K2))]
+        [model1.alpha_obs_pos[k].add_(alpha_obs_pos[k]).clamp_(clamp_min,clamp_max) for k in range(min(K1,K2))]
+        [model1.alpha_obs_neg[k].add_(alpha_obs_neg[k]).clamp_(clamp_min,clamp_max) for k in range(min(K1,K2))]                
+    
+    ## TOADD: Initialization p_present (missing nodes parameter)
     
     return model1
 
@@ -245,7 +286,7 @@ def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, v
                    bestMPO.penalty.numpy()
                    ))
         if save:
-            model_path = '{}_{}_{}_{}_{}_{}_{}.pt'.format(save_folder,
+            model_path = '{}_{}_{}_{}_{}_{}_{}.pt'.format(save_path,
                                                            K, Q, QA, 
                                                            tmpMPO.is_hierarchical, 
                                                            tmpMPO.is_dynamic, tmpMPO.is_hierarchical)
