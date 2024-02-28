@@ -50,7 +50,11 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
             tau_lat1 = torch.zeros_like(model1.tau_lat.detach())
             tau_lat1[:, :(QA2-1)] += tau_lat
             pi_lat1 = torch.zeros_like(model1.pi_lat.detach())
-            pi_lat1[:, :(QA2-1)] += pi_lat      
+            if QA2 >= 2:
+                if pi_lat1.dim() > 1:
+                    pi_lat1[:, :(QA2-1)] += pi_lat      
+                else:
+                    pi_lat1[:(QA2-1)] += pi_lat      
             alpha_lat1 = torch.zeros_like(model1.alpha_lat.detach()) 
             alpha_lat1[:QA2,:QA2] += alpha_lat  
             tau_lat = tau_lat1
@@ -70,7 +74,11 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
         if K1 > K2:
             tau_net = torch.cat((tau_net, torch.zeros((L, K1 - K2))), 1)
             pi_net1 = torch.zeros_like(model1.pi_net.detach())
-            pi_net1[:, :QA2] += pi_net 
+            if K2 >= 2:
+                if pi_net1.dim() > 1:
+                    pi_net1[:, :QA2] += pi_net 
+                else:
+                    pi_net1[:QA2] += pi_net                 
             pi_net = pi_net1     
         if K1 < K2:
             tau_net = tau_net[:,: (K1 - 1)]
@@ -81,8 +89,10 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
         if Q1 > Q2:
             tau_obs = [torch.cat((tau_obs[k], torch.zeros((n, Q1 - Q2))), 1) \
                 for k in range(K2)]
+
             pi_obs1 = [torch.zeros_like(model1.pi_obs[k].detach()) for k in range(K1)]
-            pi_obs1 = [pi_obs1[k][:,:(Q2-1)] + pi_obs[k] for k in range(min(K1,K2))]
+            if Q2 >= 2:
+                pi_obs1 = [pi_obs1[k][:,:(Q2-1)] + pi_obs[k] for k in range(min(K1,K2))]
             pi_obs = pi_obs1
             alpha_obs_pos1 = [torch.zeros_like(model1.alpha_obs_pos[k].detach()) for k in range(K1)]
             alpha_obs_neg1 = [torch.zeros_like(model1.alpha_obs_neg[k].detach()) for k in range(K1)]

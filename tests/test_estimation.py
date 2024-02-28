@@ -105,7 +105,7 @@ def test_train_models():
     assert np.allclose([1,1,2,3], [mod.nb_blocks_lat for mod in models]) # Including the initial model
 
     # Test case 4: Training models with ContinuousBernoulli distribution and net_covariates
-    models = train_models(data, 2, 4, step=1, dim='clusters', model2=myMPO2,
+    models = train_models(data2, 2, 4, step=1, dim='clusters', model2=myMPO2,
                         nb_init = 1, 
                         nb_run = 1, 
                         nb_epochs_init = 1,
@@ -113,7 +113,7 @@ def test_train_models():
     assert np.allclose([(2,1),(2,2),(2,3)], [mod.natural_parameters_network().shape for mod in models]) # Including the initial model
     
     # Test case 4: Training models with beta distribution, dynamic and hierarchical
-    models = train_models(data, 2, 4, step=1, dim='blocks_obs', model2=myMPO3,
+    models = train_models(data2, 2, 4, step=1, dim='blocks_obs', model2=myMPO3,
                         nb_init = 1, 
                         nb_run = 1, 
                         nb_epochs_init = 1,

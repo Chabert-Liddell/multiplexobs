@@ -642,10 +642,10 @@ class MultiPlexObs(nn.Module):
         if self.obs_dist == 'Beta':
             beta_ss = 2 + pcf.softplus(self.beta_ss, scale = 1)
             for k in range(self.nb_clusters):
-                X_pos = (q_net[:, k].view(L, 1, 1) * net.log() * mask).sum(dim=0)
-                X_neg = (q_net[:, k].view(L, 1, 1) * (1 - net).log() * mask).sum(dim=0)
+                X_pos = (q_net[:, k].view(L, 1, 1) * net.clamp(eps,1-eps).log() * mask).sum(dim=0)
+                X_neg = (q_net[:, k].view(L, 1, 1) * (1 - net.clamp(eps,1-eps)).log() * mask).sum(dim=0)
                 f_obs_pos += X_pos * (q_obs[k] @ (alpha_pos[k].clamp(eps,1-eps)*beta_ss) @ q_obs[k].T)
-                f_obs_pos += X_neg * (q_obs[k] @ (((1-alpha_pos[k].clamp(eps,1-eps))*self.beta_ss)) @ q_obs[k].T)
+                f_obs_pos += X_neg * (q_obs[k] @ (((1-alpha_pos[k].clamp(eps,1-eps))*beta_ss)) @ q_obs[k].T)
                 f_obs_pos += q_obs[k] @ (torch.lgamma(beta_ss) - \
                     torch.lgamma(beta_ss*alpha_pos[k].clamp(eps,1-eps)) - \
                     torch.lgamma(beta_ss * (1- alpha_pos[k].clamp(eps,1-eps)))) \
@@ -656,12 +656,12 @@ class MultiPlexObs(nn.Module):
                     torch.lgamma(beta_ss*alpha_neg[k].clamp(eps,1-eps)) - \
                     torch.lgamma(beta_ss * (1- alpha_neg[k].clamp(eps,1-eps)))) \
                         @ q_obs[k].T                            
-        Pos = -1 + A_prior + f_obs_pos - f_obs_neg
+#        Pos = -1 + A_prior + f_obs_pos - f_obs_neg
 #        Neg = -1 - A_prior - f_obs_pos + f_obs_neg
 #        Max = torch.fmax(Pos, Neg)
-
+        q_A = torch.sigmoid(A_prior + f_obs_pos - f_obs_neg)
 #        q_A = (Pos - Max).exp() / ((Pos - Max).exp() + (Neg - Max).exp())
-        q_A = torch.softmax(torch.stack((Pos + 1, - Pos - 1 )), dim=0)[0]        
+#        q_A = torch.softmax(torch.stack((Pos + 1, - Pos - 1 )), dim=0)[0]        
         if q_A.isnan().any():
             raise RuntimeError("nan while computing A_lat")
         
