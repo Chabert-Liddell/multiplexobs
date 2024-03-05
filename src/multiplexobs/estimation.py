@@ -64,7 +64,7 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
 #            alpha_lat = torch.zeros((QA1, QA1)) torch.cat( (alpha_lat, torch.zeros((1, QA1 - QA2))), 1)
         if QA1 < QA2:
             tau_lat = tau_lat[:,: (QA1 - 1)]
-            pi_lat = pi_lat[:,:(QA1,-1)]
+            pi_lat = pi_lat[:,:(QA1-1)]
             alpha_lat = alpha_lat[:QA1,:QA1]
         model1.tau_lat.add_(tau_lat).clamp_(clamp_min,clamp_max)
         model1.tau_lat.add_(tau_lat).clamp_(clamp_min,clamp_max)
@@ -76,13 +76,16 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
             pi_net1 = torch.zeros_like(model1.pi_net.detach())
             if K2 >= 2:
                 if pi_net1.dim() > 1:
-                    pi_net1[:, :QA2] += pi_net 
+                    pi_net1[:, :(K2-1)] += pi_net 
                 else:
-                    pi_net1[:QA2] += pi_net                 
+                    pi_net1[:(K2-1)] += pi_net                 
             pi_net = pi_net1     
         if K1 < K2:
             tau_net = tau_net[:,: (K1 - 1)]
-            pi_net = pi_net[:,: (K1 - 1)]            
+            if pi_net1.dim() > 1:
+                pi_net = pi_net[:,: (K1 - 1)]            
+            else:
+                pi_net = pi_net[:(K1-1)]
         model1.tau_net.add_(tau_net).clamp_(clamp_min,clamp_max)        
         model1.pi_net.add_(pi_net).clamp_(clamp_min,clamp_max)        
 
@@ -91,13 +94,18 @@ def init_from_models(model1, model2, clamp_min=-1, clamp_max=1):
                 for k in range(K2)]
 
             pi_obs1 = [torch.zeros_like(model1.pi_obs[k].detach()) for k in range(K1)]
-            if Q2 >= 2:
-                pi_obs1 = [pi_obs1[k][:,:(Q2-1)] + pi_obs[k] for k in range(min(K1,K2))]
-            pi_obs = pi_obs1
+#            if Q2 >= 2:
+#                pi_obs1 = [pi_obs1[k][:,:(Q2-1)] + pi_obs[k] for k in range(min(K1,K2))]
             alpha_obs_pos1 = [torch.zeros_like(model1.alpha_obs_pos[k].detach()) for k in range(K1)]
             alpha_obs_neg1 = [torch.zeros_like(model1.alpha_obs_neg[k].detach()) for k in range(K1)]
-            alpha_obs_pos1 = [alpha_obs_pos1[k][:Q2,:Q2] + alpha_obs_pos[k] for k in range(min(K1,K2))]
-            alpha_obs_neg1 = [alpha_obs_neg1[k][:Q2,:Q2] + alpha_obs_neg[k] for k in range(min(K1,K2))]
+            for k in range(min(K1,K2)):
+                if Q2 >= 2:
+                    pi_obs1[k][:,:(Q2-1)] += pi_obs[k]
+                alpha_obs_pos1[k][:Q2,:Q2] += alpha_obs_pos[k]
+                alpha_obs_neg1[k][:Q2,:Q2] += alpha_obs_neg[k]                
+            # alpha_obs_pos1 = [alpha_obs_pos1[k][:Q2,:Q2] + alpha_obs_pos[k] for k in range(min(K1,K2))]
+            # alpha_obs_neg1 = [alpha_obs_neg1[k][:Q2,:Q2] + alpha_obs_neg[k] for k in range(min(K1,K2))]
+            pi_obs = pi_obs1
             alpha_obs_pos = alpha_obs_pos1
             alpha_obs_neg = alpha_obs_neg1            
         if Q1 < Q2:
@@ -256,16 +264,16 @@ def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, v
     for k in tqdm(range(min, max, step), desc='Train models'):
         if dim == 'clusters':
             K = k
-            Q = model2.nb_blocks_obs[0]
-            QA = model2.nb_blocks_lat
+            Q = best_list[-1].nb_blocks_obs[0]
+            QA = best_list[-1].nb_blocks_lat
         elif dim == 'blocks_obs':
-            K = model2.nb_clusters
+            K = best_list[-1].nb_clusters
             Q = k
-            QA = model2.nb_blocks_lat        
+            QA = best_list[-1].nb_blocks_lat        
         elif dim == 'blocks_lat':
-            K = model2.nb_clusters
+            K = best_list[-1].nb_clusters
             QA = k
-            Q = model2.nb_blocks_obs[0]
+            Q = best_list[-1].nb_blocks_obs[0]
         bestMPO = pyramidal_training(data=data,
                                      nb_networks=model2.nb_networks,
                                      nb_nodes=model2.nb_nodes,
@@ -277,7 +285,7 @@ def train_models(data, min, max, step=1, dim="clusters", model2=None, depth=2, v
                                      is_dynamic=model2.is_dynamic,
                                      is_hierarchical=model2.is_hierarchical,
                                      net_covariates=model2.net_covariates,
-                                     model2=model2,
+                                     model2=best_list[-1],
                                      **kwargs
                                      )   
         optim = torch.optim.Adam(bestMPO.params, lr=.05) 

@@ -48,7 +48,8 @@ class MultiPlexObs(nn.Module):
         ), "Each observation process must have the same number of blocks!"
         assert (not (net_covariates is not None) &  is_dynamic
         ), "Model can not have both net_covariates and is_dynamic. Please choose one."
-        
+        if net_covariates is not None:
+            assert (len(net_covariates) == nb_networks), "Length of net_covariates must be the same as nb_networks!"
         if isinstance(nb_nodes, torch.Tensor):
             self.nb_nodes = nb_nodes 
         else: 
@@ -318,7 +319,7 @@ class MultiPlexObs(nn.Module):
         nb_epochs=500,
         loss="elbo",
         verbose=True,
-        early_stopping=True,
+        early_stopping=True
     ):
         """Train the model with a SGD algorithm with minibatch
 
@@ -356,11 +357,11 @@ class MultiPlexObs(nn.Module):
                         net, mask, id, labels
                     )
                     elbo = entropy + complete_log_likelihood
-                    loss = -elbo
+                    loss_ = -elbo
 
                 optimizer.zero_grad()
  #               with torch.autograd.detect_anomaly():
-                loss.backward()
+                loss_.backward()
                 optimizer.step()
 
                 with torch.no_grad():
@@ -411,7 +412,7 @@ class MultiPlexObs(nn.Module):
                             ) / (
                                 tau_net[id, k].sum(dim=0) * tau_obs[k].sum(dim=0)
                             )
-                loss_tmp += loss.item()
+                loss_tmp += loss_.item()
                 entropy_tmp += entropy.item()
                 complete_log_likelihood_tmp += complete_log_likelihood.item()
 
@@ -475,7 +476,7 @@ class MultiPlexObs(nn.Module):
             alpha_obs_pos,
             alpha_obs_neg,
             tau_obs,
-            tau_net[net_id, :],
+            tau_net[net_id, :]
         )
         if cll.isnan():
             raise RuntimeError("nan value after computing obs_likelihood.")
@@ -501,18 +502,20 @@ class MultiPlexObs(nn.Module):
                 )
         if cll.isnan():
             raise RuntimeError("nan value after computing obs mixture.")
-        if self.is_dynamic:
-            cll += (nb_net / self.nb_networks) * (
-                torch.sum((tau_net[0:-1,].T @ tau_net[1:,]) * pi_net.log())
-            )
-            if self.net_covariates is not None:
-                cll += (nb_net / self.nb_networks) * torch.sum(
-                    torch.einsum(
-                        "ij,ij->i", tau_net, pi_net.log()[self.net_covariates, :]
-                    )
+        if self.net_covariates is not None:
+            cll += (nb_net / self.nb_networks) * torch.sum(
+                torch.einsum(
+                    "ij,ij->i", tau_net, pi_net.log()[self.net_covariates, :]
+                )
+                )
+        else:
+            if self.is_dynamic:
+                cll += (nb_net / self.nb_networks) * (
+                    torch.sum((tau_net[0:-1,].T @ tau_net[1:,]) * pi_net.log())
                 )
             else:
                 cll += torch.sum(tau_net[net_id, :] @ pi_net.log())
+
         if cll.isnan():
             raise RuntimeError("nan value after computing network mixture.")
 
@@ -593,7 +596,7 @@ class MultiPlexObs(nn.Module):
                 alpha_neg,
                 tau_nodes,
                 tau_net,
-                self.beta_ss,
+                self.beta_ss
             )
         if ll.isnan():
             raise RuntimeError("Nan value while computing obs_likelihood")

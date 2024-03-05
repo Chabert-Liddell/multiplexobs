@@ -13,7 +13,11 @@ def log_norm_const(p, eps=1e-6):
     Returns:
         torch.Tensor: The logarithm of the normalization constant.
 
-    Raises:
+                    myMPO = estimation.pyramidal_training(data, nb_networks = L, nb_nodes = n,  obs_dist = 'Bernoulli', 
+                                                        directed = False, is_dynamic = False,
+                                                        nb_clusters = 5, 
+                                                        nb_blocks_obs= 3, 
+                                                        nb_blocks_lat = 3)    Raises:
         AssertionError: If any value in p is not between 0 and 1.
     """
     assert torch.all((0 <= p) & (p <= 1)), "p must be a probability value between 0 and 1"

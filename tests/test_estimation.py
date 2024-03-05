@@ -49,7 +49,7 @@ myMPO2 = MultiPlexObs(nb_networks=L,
                                 directed = True, 
                                 is_hierarchical = False, 
                                 is_dynamic = False,
-                                net_covariates=np.array([0,0,1,1,1]),
+                                net_covariates=np.array([0,0,1,1,1,1]),
                                 device='cpu')
 myMPO2.initialize(data2)
 myMPO2.to(device)            
